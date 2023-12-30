@@ -75,7 +75,7 @@ else:
         }
     segmentation_model = decoder_map.get(DECODER.lower(), smp.Unet)
     model = segmentation_model(in_channels=1, encoder_name=ENCODER, classes=1, activation=None)
-    print("New model generated!")
+    print("Model generated!")
 
 # Dataloaders
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)

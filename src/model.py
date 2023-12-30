@@ -9,14 +9,15 @@ class SegmentationModel:
 
     Args:
         model_path (str): path to model weights
+        activation (callable): torch activation function
     """
-    def __init__(self, model_path):
+    def __init__(self, model_path, activation=torch.sigmoid):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = torch.load(model_path, map_location=self.device)
+        self.activation = activation
 
-    @staticmethod
-    def binary_activation(logits, activation=torch.sigmoid, binarization_threshold=0.5):
-        return (activation(logits) >= binarization_threshold).int()
+    def _binary_activation(self, logits, binarization_threshold=0.5):
+        return (self.activation(logits) >= binarization_threshold).int()
 
     def _to_tensor(self, numpy_image):
         tensor = torch.from_numpy(numpy_image).to(self.device)
@@ -27,8 +28,11 @@ class SegmentationModel:
         image = image[np.newaxis, :, :]  # (num of channels) dimension must be provided
         return self._to_tensor(image)
 
-    def predict(self, image_path):
+    def predict(self, image_path, binarization=True):
         image = self._load_image(image_path)
-        pr_mask = self.model.predict(image)  # Switch model to `eval` mode, call `.forward(x)` with `torch.no_grad()`
-        binary_mask = self.binary_activation(pr_mask, activation=torch.sigmoid)
-        return binary_mask.squeeze().cpu()
+        mask = self.model.predict(image)  # switch model to `eval` mode, call `.forward(x)` with `torch.no_grad()`
+        if binarization:  # whetever to apply binarization thresholding after activation
+            binary_mask = self._binary_activation(mask)
+            return binary_mask.squeeze().cpu()
+        else:
+            return self.activation(mask).squeeze().cpu()
