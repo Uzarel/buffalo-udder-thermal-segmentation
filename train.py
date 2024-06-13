@@ -37,22 +37,20 @@ EARLY_STOPPING_PATIENCE = int(config.get('CALLBACKS', 'EARLY_STOPPING_PATIENCE')
 DEVICE = config.get('TRAINING_LOOP', 'DEVICE')
 NUM_EPOCHS = int(config.get('TRAINING_LOOP', 'NUM_EPOCHS'))
 
-# Data paths
-x_train_path = config.get('DATA_PATHS', 'X_TRAIN')
-y_train_path = config.get('DATA_PATHS', 'Y_TRAIN')
-x_val_path = config.get('DATA_PATHS', 'X_VAL')
-y_val_path = config.get('DATA_PATHS', 'Y_VAL')
-
-# Augmentations
+# Reversible augmentations (useful for test-time augmentation)
 def get_training_augmentation():
     train_transform = [
         albu.HorizontalFlip(),
         albu.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.5, border_mode=1, rotate_limit=30),
         albu.PadIfNeeded(min_height=HEIGHT, min_width=WIDTH, border_mode=1, always_apply=True), # border_mode=cv2.BORDER_REPLICATE, all images are 480x640px in size
-        albu.GaussNoise(var_limit=10),
-        albu.OneOf([albu.Sharpen(), albu.Blur(blur_limit=3)]),
     ]
     return albu.Compose(train_transform)
+
+# Data paths
+x_train_path = config.get('DATA_PATHS', 'X_TRAIN')
+y_train_path = config.get('DATA_PATHS', 'Y_TRAIN')
+x_val_path = config.get('DATA_PATHS', 'X_VAL')
+y_val_path = config.get('DATA_PATHS', 'Y_VAL')
 
 # Datasets
 train_dataset = Dataset(x_train_path, y_train_path, augmentation=get_training_augmentation(), preprocessing=get_preprocessing())
@@ -60,8 +58,8 @@ val_dataset = Dataset(x_val_path, y_val_path, preprocessing=get_preprocessing())
 print("Datasets generated!")
 
 # Model
-if os.path.exists(f"{DECODER}_{ENCODER}_model.pth"): # pre-trained model is present
-    model = load(f"{DECODER}_{ENCODER}_model.pth")
+if os.path.exists(f"out/{DECODER}_{ENCODER}_model.pth"): # pre-trained model is present
+    model = load(f"out/{DECODER}_{ENCODER}_model.pth")
     print("Previous model loaded!")
 else:
     decoder_map = {
@@ -74,7 +72,10 @@ else:
             "unet": smp.Unet
         }
     segmentation_model = decoder_map.get(DECODER.lower(), smp.Unet)
-    model = segmentation_model(in_channels=1, encoder_name=ENCODER, classes=1, activation=None)
+    if segmentation_model == smp.Unet:
+        model = segmentation_model(in_channels=1, encoder_name=ENCODER, classes=1, activation=None, decoder_attention_type = 'scse')
+    else:
+        model = segmentation_model(in_channels=1, encoder_name=ENCODER, classes=1, activation=None)
     print("Model generated!")
 
 # Dataloaders
@@ -88,19 +89,22 @@ dice_loss = smp.losses.DiceLoss(mode="binary")
 joint_loss = JointLoss(losses=[softbce_loss, dice_loss, focal_loss], weights=[SOFTBCE_WEIGHT, DICE_WEIGHT, FOCAL_WEIGHT]) # ref: https://arxiv.org/ftp/arxiv/papers/2209/2209.00729.pdf
 
 # Metrics
+activation = "sigmoid"
 metrics = [
-    smp_utils.metrics.IoU(activation="sigmoid", threshold=0.5), # threshold is for target binarization
-    smp_utils.metrics.Precision(activation="sigmoid"), # PR are pixel-wise
-    smp_utils.metrics.Recall(activation="sigmoid"),
-    smp_utils.metrics.Fscore(activation="sigmoid"),
+    smp_utils.metrics.IoU(activation=activation, threshold=0.5), # threshold is for target binarization
+    smp_utils.metrics.Precision(activation=activation), # PR are pixel-wise
+    smp_utils.metrics.Recall(activation=activation),
+    smp_utils.metrics.Fscore(activation=activation),
 ]
 
 # Optimizer
 optimizer = AdamW([dict(params=model.parameters(), lr=LEARNING_RATE)])
 
+# TODO: Load scheduler status if training is resumed
 # Scheduler
 scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=PLATEAU_DECAY_FACTOR, patience=PLATEAU_PATIENCE, verbose=True)
 
+# TODO: Load callbacks status if training is resumed
 # Callbacks
 early_stopper = EarlyStopper(patience=EARLY_STOPPING_PATIENCE)
 

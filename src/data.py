@@ -28,8 +28,7 @@ class Dataset(BaseDataset):
     def __getitem__(self, i):
         image = cv2.imread(self.images_fps[i], cv2.IMREAD_GRAYSCALE)
         mask = cv2.imread(self.masks_fps[i], cv2.IMREAD_GRAYSCALE)
-        # Conversion to a binary mask (0 -> 0, 255 -> 1)
-        mask = mask // 255
+        
         # Apply augmentations
         if self.augmentation:
             sample = self.augmentation(image=image, mask=mask)

@@ -20,19 +20,23 @@ class SegmentationModel:
         return (self.activation(logits) >= binarization_threshold).int()
 
     def _to_tensor(self, numpy_image):
+        numpy_image = numpy_image[np.newaxis, :, :].astype("float32")  # (num of channels) dimension must be provided
         tensor = torch.from_numpy(numpy_image).to(self.device)
         return tensor.unsqueeze(0)  # batch size dimension must be provided to the network
 
     def _load_image(self, image_path):
-        image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE).astype("float32")  # Make sure image dimensions can be divided by 32
-        image = image[np.newaxis, :, :]  # (num of channels) dimension must be provided
-        return self._to_tensor(image)
+        image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)  # Make sure image dimensions can be divided by 32
+        normalized_image = (image - image.min()) / (image.max() - image.min())
+        return self._to_tensor(normalized_image)
 
-    def predict(self, image_path, binarization=True):
-        image = self._load_image(image_path)
+    def predict(self, image, from_path=True, binarization=True):  # image can be either an image path or a nomralized image array
+        if from_path:
+            image = self._load_image(image)
+        else:
+            image = self._to_tensor(image)
         mask = self.model.predict(image)  # switch model to `eval` mode, call `.forward(x)` with `torch.no_grad()`
         if binarization:  # whetever to apply binarization thresholding after activation
             binary_mask = self._binary_activation(mask)
-            return binary_mask.squeeze().cpu()
+            return binary_mask.squeeze().cpu().numpy()
         else:
-            return self.activation(mask).squeeze().cpu()
+            return self.activation(mask).squeeze().cpu().numpy()
