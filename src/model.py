@@ -29,12 +29,18 @@ class SegmentationModel:
         normalized_image = (image - image.min()) / (image.max() - image.min())
         return self._to_tensor(normalized_image)
 
-    def predict(self, image, from_path=True, binarization=True):  # image can be either an image path or a nomralized image array
-        if from_path:
+    def predict(self, image, is_image_from_path=True, flip_tta=False, binarization=True):  # image can be either an image path or a nomralized image array
+        if is_image_from_path:
             image = self._load_image(image)
         else:
             image = self._to_tensor(image)
-        mask = self.model.predict(image)  # switch model to `eval` mode, call `.forward(x)` with `torch.no_grad()`
+        if flip_tta: # whetever to predict segmentation mask on both the original and the flipped image and then average them
+            unflipped_mask = self.model.predict(image)  # switch model to `eval` mode, call `.forward(x)` with `torch.no_grad()`
+            flipped_image = torch.flip(image, [-1])
+            flipped_mask = self.model.predict(flipped_image)
+            mask = (unflipped_mask + torch.flip(flipped_mask, [-1])) / 2 # mask probability averaging
+        else:
+            mask = self.model.predict(image)  # switch model to `eval` mode, call `.forward(x)` with `torch.no_grad()`
         if binarization:  # whetever to apply binarization thresholding after activation
             binary_mask = self._binary_activation(mask)
             return binary_mask.squeeze().cpu().numpy()
