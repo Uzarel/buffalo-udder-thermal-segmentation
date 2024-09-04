@@ -12,6 +12,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from src.callbacks import EarlyStopper
 from src.data import Dataset
+from src.epochs import TrainEpoch, ValidEpoch
 from src.losses import JointLoss
 from src.misc import load_logs
 from src.preprocessing import get_preprocessing
@@ -117,7 +118,7 @@ scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=PLATEAU_DECAY_FACTOR
 early_stopper = EarlyStopper(patience=EARLY_STOPPING_PATIENCE)
 
 # Train epoch
-train_epoch = smp_utils.train.TrainEpoch(
+train_epoch = TrainEpoch(
     model,
     loss=joint_loss,
     metrics=metrics,
@@ -127,7 +128,7 @@ train_epoch = smp_utils.train.TrainEpoch(
 )
 
 # Validation epoch
-val_epoch = smp_utils.train.ValidEpoch(
+val_epoch = ValidEpoch(
     model,
     loss=joint_loss,
     metrics=metrics,
