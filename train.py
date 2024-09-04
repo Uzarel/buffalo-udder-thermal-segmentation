@@ -73,9 +73,17 @@ else:
         }
     segmentation_model = decoder_map.get(DECODER.lower(), smp.Unet)
     if segmentation_model == smp.Unet:
-        model = segmentation_model(in_channels=1, encoder_name=ENCODER, classes=1, activation=None, decoder_attention_type = 'scse')
+        try: # try loading imagenet weights if available
+            model = segmentation_model(in_channels=1, encoder_name=ENCODER, encoder_weights="imagenet", classes=1, activation=None, decoder_attention_type = 'scse')
+            print("Imagenet weights loaded!")
+        except:
+            model = segmentation_model(in_channels=1, encoder_name=ENCODER, classes=1, activation=None, decoder_attention_type = 'scse')
     else:
-        model = segmentation_model(in_channels=1, encoder_name=ENCODER, classes=1, activation=None)
+        try: # try loading imagenet weights if available
+            model = segmentation_model(in_channels=1, encoder_name=ENCODER, encoder_weights="imagenet", classes=1, activation=None)
+            print("Imagenet weights loaded!")
+        except:
+            model = segmentation_model(in_channels=1, encoder_name=ENCODER, classes=1, activation=None)
     print("Model generated!")
 
 # Dataloaders
