@@ -3,7 +3,6 @@ import configparser
 import os
 import pandas as pd
 import segmentation_models_pytorch as smp
-import segmentation_models_pytorch.utils as smp_utils
 
 from torch import load, save
 from torch.optim import AdamW
@@ -14,6 +13,7 @@ from src.callbacks import EarlyStopper
 from src.data import Dataset
 from src.epochs import TrainEpoch, ValidEpoch
 from src.losses import JointLoss
+from src.metrics import IoU, Precision, Recall, Fscore, SoftBCELossMetric, FocalLossMetric, DiceLossMetric
 from src.misc import load_logs
 from src.preprocessing import get_preprocessing
 
@@ -100,10 +100,13 @@ joint_loss = JointLoss(losses=[softbce_loss, dice_loss, focal_loss], weights=[SO
 # Metrics
 activation = "sigmoid"
 metrics = [
-    smp_utils.metrics.IoU(activation=activation, threshold=0.5), # threshold is for target binarization
-    smp_utils.metrics.Precision(activation=activation), # PR are pixel-wise
-    smp_utils.metrics.Recall(activation=activation),
-    smp_utils.metrics.Fscore(activation=activation),
+    SoftBCELossMetric(smooth_factor=0.1), # joint loss is the mean of the joint (mean) losses, single loss metrics are the mean of each single loss
+    DiceLossMetric(mode="binary"),
+    FocalLossMetric(mode="binary", alpha=0.2, gamma=2.0),
+    IoU(activation=activation, threshold=0.5), # threshold is for target binarization
+    Precision(activation=activation), # PR are pixel-wise
+    Recall(activation=activation),
+    Fscore(activation=activation),
 ]
 
 # Optimizer
