@@ -50,14 +50,15 @@ def plot_loss_miou(val_logs_path):
     joint_loss = df["joint_loss"]
     iou_score = df["iou_score"]
 
-    fig, ax1 = plt.subplots(figsize=(10, 6))
+    fig, ax1 = plt.subplots(figsize=(18, 9))
+
     epochs = range(1, len(joint_loss) + 1)
 
     ax1.plot(epochs, joint_loss, label="Joint Loss", marker="o", color="tab:blue")
     ax1.set_xlabel("Epochs")
     ax1.set_ylabel("Joint Loss", color="tab:blue")
     ax1.tick_params(axis="y", labelcolor="tab:blue")
-    ax1.set_xticks(epochs)
+    ax1.set_xticks(select_ticks(epochs, sorting="ascending", threshold=2))
     ax1.set_yticks(select_ticks(joint_loss, sorting="ascending"))
 
     ax2 = ax1.twinx()
@@ -72,7 +73,8 @@ def plot_loss_miou(val_logs_path):
     fig.legend(loc="upper right")
     ax1.grid(visible=True, color="tab:blue", linestyle="-", alpha=0.5)
     ax2.grid(visible=True, color="tab:orange", linestyle="-", alpha=0.5)
-    plt.show()
+    plt.savefig('out/plot_loss_miou.png')
+    plt.close()
 
 
 # Pixel-level Precision-Recall-F1 Plot
@@ -84,7 +86,7 @@ def plot_precision_recall(val_logs_path):
     fscore = df["fscore"]
     epochs = range(1, len(precision) + 1)
 
-    plt.rcParams["figure.figsize"] = (10, 6)
+    plt.figure(figsize=(18, 9))
 
     plt.plot(epochs, precision, label="Precision", marker="o", color="tab:blue")
     plt.plot(epochs, recall, label="Recall", marker="x", color="tab:orange")
@@ -96,10 +98,11 @@ def plot_precision_recall(val_logs_path):
     plt.legend(loc="lower right")
     plt.xlabel("Epoch")
     plt.ylabel("Score")
-    plt.xticks(epochs)
+    plt.xticks(select_ticks(epochs, sorting="ascending", threshold=2))
     plt.yticks(select_ticks(pd.concat([precision, recall, fscore])))
     plt.grid(visible=True, color="tab:purple", linestyle="-", alpha=0.5)
-    plt.show()
+    plt.savefig('out/plot_precision_recall.png')
+    plt.close()
 
 
 # Accuracy
@@ -126,7 +129,7 @@ def compute_accuracies(dataloader, segmentation_model, start_threshold, end_thre
 
 # Accuracy-IoU threshold plot
 def plot_accuracies(iou_thresholds, accuracies):
-    plt.figure(figsize=(8, 6))
+    plt.figure(figsize=(18, 12))  # Create a new figure
     plt.plot(iou_thresholds, accuracies, marker="o", label="Accuracy")
     plt.xlabel("IoU")
     plt.ylabel("Accuracy")
@@ -134,7 +137,9 @@ def plot_accuracies(iou_thresholds, accuracies):
     plt.xticks(iou_thresholds)
     plt.yticks(select_ticks(accuracies, sorting='descending', threshold=0.03))
     plt.grid(color='tab:blue', alpha=0.5)
-    plt.show()
+    plt.savefig('out/plot_accuracies.png')
+    plt.close()  # Close the figure to avoid overlap
+
 
 if __name__ == "__main__":
     test_dataset = Dataset(X_TEST_PATH, Y_TEST_PATH, preprocessing=get_preprocessing())
